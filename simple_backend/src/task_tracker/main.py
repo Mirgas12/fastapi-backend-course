@@ -11,7 +11,7 @@ app = FastAPI() # Создаем приложение FastAPI — это как 
 class Task(BaseModel):  # Описание модели задачи. Task — полная задача, TaskCreate — только с названием (для создания новой задачи)
     id: int # Уникальный номер задачи
     title: str  # Название задачи
-    status: bool = False  # Выполнена задача или нет (по умолчанию — нет)
+    status: bool = False  # Выполнена задача или нет (по умолчанию — False)
 
 class TaskCreate(BaseModel):
     title: str  # Только название задачи (без ID и статуса)
@@ -28,6 +28,15 @@ class CloudFlareAPI:    # Класс для работы с Cloudflare Workers A
         }
         response = requests.post(self.api_url, headers=headers, json=data)
         return response.json()      # Возвращаем ответ в формате JSON
+
+    def run(self, model: str, inputs: list):    # Метод для выполнения задачи через Cloudflare AI
+        headers = {     # Заголовки запроса
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        input_data = {"messages": inputs}    # Формируем данные для отправки
+        response = requests.post(f"{self.api_url}{model}", headers=headers, json=input_data)    # Отправляем запрос на выполнение модели
+        return response.json()    # Возвращаем ответ
 
 class TaskStorage:  # Класс TaskStorage управляет хранением задач в файле
     def __init__(self, filename):
@@ -56,7 +65,20 @@ def create_task(task_data: TaskCreate):
     new_task = Task(id=task_id, title=task_data.title, status=False)      # Создаем новую задачу с уникальным ID и статусом False
     tasks.append(new_task)  # Добавляем новую задачу в список
     storage.save_tasks(tasks)  # Сохраняем список обратно в файл
-    return new_task  # Возвращаем созданную задачу
+    cloudflare_api = CloudFlareAPI(  # Создаем объект для работы с Cloudflare API
+        api_url="https://api.cloudflare.com/client/v4/accounts/e959035eda5785e18c0c699884ac8b13/ai/run/",
+        api_key="0vP-4yVrIoQjNe4qvjKwHfNVlZRCdjuOmnpm_Ovz"
+    )
+    inputs = [   # Формируем запрос для AI, чтобы объяснить, как выполнить задачу
+        {"role": "system", "content": "You are a helpful assistant that explains how to solve tasks."},
+        {"role": "user", "content": f"Explain how to solve the task: {task_data.title}"}
+    ]
+    llm_response = cloudflare_api.run("@cf/meta/llama-3-8b-instruct", inputs)   # Отправляем запрос в Cloudflare AI
+
+    return {     # Возвращаем созданную задачу и ответ от AI
+        "task": new_task,
+        "llm_response": llm_response
+    }
 
 @app.put("/tasks/{task_id}")    # Обновляем существующую задачу по ID
 def update_task(task_id: int, task_data: TaskCreate):
