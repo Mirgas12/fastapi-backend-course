@@ -1,11 +1,12 @@
 
-import json, os
+import json
+import os
+import requests
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 
 app = FastAPI() # Создаем приложение FastAPI — это как веб-сервер, который отвечает на запросы
-
 
 class Task(BaseModel):  # Описание модели задачи. Task — полная задача, TaskCreate — только с названием (для создания новой задачи)
     id: int # Уникальный номер задачи
@@ -15,6 +16,18 @@ class Task(BaseModel):  # Описание модели задачи. Task — �
 class TaskCreate(BaseModel):
     title: str  # Только название задачи (без ID и статуса)
 
+class CloudFlareAPI:    # Класс для работы с Cloudflare Workers AI (интеграция через REST API)
+    def __init__(self, api_url: str, api_key: str):
+        self.api_url = api_url  # URL-адрес Cloudflare API
+        self.api_key = api_key  # Ключ доступа к Cloudflare API
+
+    def post_data(self, data:dict):
+        headers = {     # Отправка POST-запроса с JSON-данными в Cloudflare
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        response = requests.post(self.api_url, headers=headers, json=data)
+        return response.json()      # Возвращаем ответ в формате JSON
 
 class TaskStorage:  # Класс TaskStorage управляет хранением задач в файле
     def __init__(self, filename):
@@ -63,7 +76,4 @@ def delete_task(task_id: int):
         return {"message":"Task deleted"}  # Если ничего не удалили, значит задача не найдена
     storage.save_tasks(new_tasks)  # Сохраняем обновлённый список задач
     return {"message": "Task deleted"}  # Возвращаем сообщение об успешном удалении
-
-
-
 
