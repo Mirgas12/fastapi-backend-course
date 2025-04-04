@@ -6,7 +6,6 @@ from pydantic import BaseModel
 
 app = FastAPI()  # Создаем приложение FastAPI
 
-
 class BaseHTTPClient:   # Базовый класс для работы с HTTP-запросами
     def __init__(self, api_url: str, api_key: str = None):
         self.api_url = api_url  # URL-адрес API
@@ -21,8 +20,8 @@ class BaseHTTPClient:   # Базовый класс для работы с HTTP-
         response.raise_for_status()  # Проверяем успешность запроса
         return response.json()  # Возвращаем ответ в формате JSON
 
-# Класс для работы с Cloudflare Workers AI
-class CloudFlareAPI(BaseHTTPClient):
+
+class CloudFlareAPI(BaseHTTPClient):    # Класс для работы с Cloudflare Workers AI
     def run(self, model: str, inputs: list):     #Выполнение задачи через Cloudflare AI
         input_data = {"messages": inputs}  # Формируем данные для отправки
         return self.post_data(model, input_data)  # Отправляем запрос
@@ -89,6 +88,7 @@ def update_task(task_id: int, task_data: TaskCreate):
             storage.save_tasks(tasks)  # Сохраняем изменения
             return task  # Возвращаем обновлённую задачу
     return {'error': 'Task not found'}  # Если не нашли — возвращаем сообщение об ошибке
+
 
 @app.delete("/tasks/{task_id}")    # Удаляем задачу по ID
 def delete_task(task_id: int):
